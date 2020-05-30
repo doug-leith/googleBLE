@@ -20,6 +20,7 @@ package com.google.android.apps.exposurenotification.debug;
 import static com.google.android.apps.exposurenotification.nearby.ProvideDiagnosisKeysWorker.DEFAULT_API_TIMEOUT;
 
 import android.app.Application;
+import android.os.Environment;
 import android.text.TextUtils;
 import android.util.Log;
 import androidx.annotation.NonNull;
@@ -34,8 +35,10 @@ import com.google.android.apps.exposurenotification.debug.TemporaryExposureKeyEn
 import com.google.android.apps.exposurenotification.nearby.DiagnosisKeyFileSubmitter;
 import com.google.android.apps.exposurenotification.nearby.ExposureNotificationClientWrapper;
 import com.google.android.apps.exposurenotification.network.KeyFileBatch;
+import com.google.android.apps.exposurenotification.storage.ExposureEntity;
 import com.google.android.apps.exposurenotification.storage.TokenEntity;
 import com.google.android.apps.exposurenotification.storage.TokenRepository;
+import com.google.android.gms.nearby.exposurenotification.ExposureInformation;
 import com.google.android.gms.nearby.exposurenotification.TemporaryExposureKey;
 import com.google.android.gms.nearby.exposurenotification.TemporaryExposureKey.TemporaryExposureKeyBuilder;
 import com.google.common.collect.ImmutableList;
@@ -43,7 +46,10 @@ import com.google.common.collect.Lists;
 import com.google.common.io.BaseEncoding;
 import com.google.common.util.concurrent.FluentFuture;
 import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
 import java.io.File;
+import java.io.FileOutputStream;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.threeten.bp.Duration;
@@ -74,7 +80,7 @@ public class ProvideMatchingViewModel extends AndroidViewModel {
     singleInputIntervalNumberLiveData =
         new MutableLiveData<>((int) (System.currentTimeMillis() / (10 * 60 * 1000L)));
     singleInputRollingPeriodLiveData = new MutableLiveData<>(144);
-    singleInputTransmissionRiskLevelLiveData = new MutableLiveData<>(0);
+    singleInputTransmissionRiskLevelLiveData = new MutableLiveData<>(1);
     batchInputLiveData = new MutableLiveData<>("");
     tokenLiveData = new MutableLiveData<>("");
     fileInputLiveData = new MutableLiveData<>(null);
@@ -167,6 +173,7 @@ public class ProvideMatchingViewModel extends AndroidViewModel {
 
   public void provideSingleAction() {
     String key = getSingleInputKeyLiveData().getValue();
+    Log.d("DL",key);
 
     KeyFileWriter keyFileWriter = new KeyFileWriter(getApplication());
     TemporaryExposureKey temporaryExposureKey;
@@ -178,6 +185,7 @@ public class ProvideMatchingViewModel extends AndroidViewModel {
             .setTransmissionRiskLevel(getSingleInputTransmissionRiskLevelLiveData().getValue())
             .setRollingStartIntervalNumber(getSingleInputIntervalNumberLiveData().getValue())
             .build();
+      Log.d("DL",temporaryExposureKey.toString());
     } catch(IllegalArgumentException e) {
       Log.e(TAG, "Error creating TemporaryExposureKey", e);
       snackbarLiveEvent.postValue(getApplication().getString(R.string.debug_matching_single_error));
@@ -240,52 +248,77 @@ public class ProvideMatchingViewModel extends AndroidViewModel {
     TokenRepository repository = new TokenRepository(getApplication());
 
     KeyFileBatch batch = KeyFileBatch.ofFiles("US", 1, files);
-
-    FluentFuture.from(
-            TaskToFutureAdapter.getFutureWithTimeout(
-                ExposureNotificationClientWrapper.get(getApplication()).isEnabled(),
-                DEFAULT_API_TIMEOUT.toMillis(),
-                TimeUnit.MILLISECONDS,
-                AppExecutors.getScheduledExecutor()))
-        .transformAsync(
-            (isEnabled) -> {
-              // Only continue if it is enabled.
-              if (isEnabled) {
-                return Futures.immediateFuture(ImmutableList.of(batch));
-              } else {
-                return Futures.immediateFailedFuture(new NotEnabledException());
-              }
-            },
-            AppExecutors.getBackgroundExecutor())
-        .transformAsync(
-            batches -> submitter.submitFiles(batches, token), AppExecutors.getBackgroundExecutor())
-        .transformAsync(
-            done -> repository.upsertAsync(TokenEntity.create(token, false)),
-            AppExecutors.getBackgroundExecutor())
-        .transform(
-            done -> {
-              snackbarLiveEvent.postValue(
-                  getApplication().getString(R.string.debug_matching_provide_success));
-              return null;
-            },
-            AppExecutors.getLightweightExecutor())
-        .catching(
-            NotEnabledException.class,
-            x -> {
-              snackbarLiveEvent.postValue(
-                  getApplication().getString(R.string.debug_matching_provide_error_disabled));
-              Log.w(TAG, "Error, isEnabled is false", x);
-              return null;
-            },
-            AppExecutors.getBackgroundExecutor())
-        .catching(
-            Exception.class,
-            x -> {
-              snackbarLiveEvent.postValue(
-                  getApplication().getString(R.string.debug_matching_provide_error_unknown));
-              Log.w(TAG, "Unknown exception when providing", x);
-              return null;
-            },
-            AppExecutors.getBackgroundExecutor());
+    //DL
+    int[] lowThresh = {48,48,48,48, 53,58,63,68,73,78,83, 53,58,63,73,83, 53,58,63,73,83, 53,58,63,73,83};
+    int[] highThresh = {53,83,63,73, 58,63,68,73,78,83,88, 63,68,73,83,93, 68,73,78,83,88,93, 73,78,83,93,103};
+    int i;
+    int len = 2; //lowThresh.length;
+    for (i = 0; i < len; i++) {
+      String toke = token + ":" + lowThresh[i] + "-" + highThresh[i];
+      int low = lowThresh[i];
+      int high = highThresh[i];
+      FluentFuture.from(
+          TaskToFutureAdapter.getFutureWithTimeout(
+              ExposureNotificationClientWrapper.get(getApplication()).isEnabled(),
+              DEFAULT_API_TIMEOUT.toMillis(),
+              TimeUnit.MILLISECONDS,
+              AppExecutors.getScheduledExecutor()))
+          .transformAsync(
+              (isEnabled) -> {
+                // Only continue if it is enabled.
+                if (isEnabled) {
+                  return Futures.immediateFuture(ImmutableList.of(batch));
+                } else {
+                  return Futures.immediateFailedFuture(new NotEnabledException());
+                }
+              },
+              AppExecutors.getBackgroundExecutor())
+          .transform(
+              batches -> submitter.submitFiles(batches, toke,
+                  low,high), AppExecutors.getBackgroundExecutor())
+          .transformAsync(
+              done -> repository.upsertAsync(TokenEntity.create(toke, false)),
+              AppExecutors.getBackgroundExecutor())
+           .transform(
+              done -> {
+                snackbarLiveEvent.postValue(
+                    getApplication().getString(R.string.debug_matching_provide_success));
+                return null;
+              },
+              AppExecutors.getLightweightExecutor())
+          /*.transform(
+              done -> {
+                ExposureNotificationClientWrapper.get(getApplication())
+                    .getExposureInformation(toke)
+                    .addOnCompleteListener(
+                        (t) -> {
+                          Log.d("DL","exposureInformations "+toke+" "+t.getResult());
+                          for (ExposureInformation exposureInformation : t.getResult()) {
+                            Log.d("DL",toke+":"+exposureInformation.toString());
+                          };
+                        }
+                    );
+                return null;
+              },
+              AppExecutors.getBackgroundExecutor())*/
+          .catching(
+              NotEnabledException.class,
+              x -> {
+                snackbarLiveEvent.postValue(
+                    getApplication().getString(R.string.debug_matching_provide_error_disabled));
+                Log.w(TAG, "Error, isEnabled is false", x);
+                return null;
+              },
+              AppExecutors.getBackgroundExecutor())
+          .catching(
+              Exception.class,
+              x -> {
+                snackbarLiveEvent.postValue(
+                    getApplication().getString(R.string.debug_matching_provide_error_unknown));
+                Log.w(TAG, "Unknown exception when providing", x);
+                return null;
+              },
+              AppExecutors.getBackgroundExecutor());
+    }
   }
 }

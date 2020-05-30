@@ -18,6 +18,7 @@
 package com.google.android.apps.exposurenotification.nearby;
 
 import android.content.Context;
+import android.util.Log;
 import com.google.android.gms.nearby.Nearby;
 import com.google.android.gms.nearby.exposurenotification.ExposureConfiguration;
 import com.google.android.gms.nearby.exposurenotification.ExposureInformation;
@@ -73,10 +74,36 @@ public class ExposureNotificationClientWrapper {
   /**
    * Provides diagnosis key files with a stable token and default {@link ExposureConfiguration}.
    */
-  public Task<Void> provideDiagnosisKeys(List<File> files, String token) {
+  public Task<Void> provideDiagnosisKeys(List<File> files, String token, int lowThresh, int highThresh) {
     // TODO: add some configuration
+    // DL
+    // Time/Distance: Any individual who has had greater than 15 minutes face-to-face (<2 meters distance) contact with a case, in any setting.
+    // Configuration:
+    // default values: lowThresh=48, highThresh=58
     ExposureConfiguration exposureConfiguration =
-        new ExposureConfiguration.ExposureConfigurationBuilder().build();
+        new ExposureConfiguration.ExposureConfigurationBuilder()
+            /*.setAttenuationScores(1, 1, 1, 1, 1, 1, 1, 1)
+            .setDaysSinceLastExposureScores(1, 1, 1, 1, 1, 1, 1, 1)
+            .setTransmissionRiskScores(1, 1, 1, 1, 1, 1, 1, 1)
+            .setDurationScores(1, 1, 1, 1, 1, 1, 1, 1)*/
+            .setMinimumRiskScore(1)
+            .setDurationAtAttenuationThresholds(lowThresh, highThresh).build();
+
+    //ExposureConfiguration exposureConfiguration =
+    //    new ExposureConfiguration.ExposureConfigurationBuilder().build();
+    /*
+        private int zza = 4;  minimumRiskScore
+        private int[] zzb = new int[]{4, 4, 4, 4, 4, 4, 4, 4}; attenuationScores
+        private int zzc = 50;  attenuationWeight
+        private int[] zzd = new int[]{4, 4, 4, 4, 4, 4, 4, 4}; daysSinceLastExposureScores
+        private int zze = 50; daysSinceLastExposureWeight
+        private int[] zzf = new int[]{4, 4, 4, 4, 4, 4, 4, 4}; durationScores
+        private int zzg = 50;  durationWeight
+        private int[] zzh = new int[]{4, 4, 4, 4, 4, 4, 4, 4};  transmissionRiskScores
+        private int zzi = 50;  transmissionRiskWeight
+        private int[] zzj = new int[]{50, 74};  durationAtAttenuationThresholds
+     */
+    Log.d("DL","provideDiagnosisKeys "+token);
     return exposureNotificationClient
         .provideDiagnosisKeys(files, exposureConfiguration, token);
   }

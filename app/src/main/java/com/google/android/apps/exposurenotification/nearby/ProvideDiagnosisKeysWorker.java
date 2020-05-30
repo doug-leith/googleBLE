@@ -94,7 +94,7 @@ public class ProvideDiagnosisKeysWorker extends ListenableWorker {
             return Futures.immediateFailedFuture(new NotEnabledException());
           }
         }, AppExecutors.getBackgroundExecutor())
-        .transformAsync((batches) -> submitter.submitFiles(batches, token),
+        .transformAsync((batches) -> submitter.submitFiles(batches, token, 48,53),
             AppExecutors.getBackgroundExecutor())
         .transformAsync(
             done -> tokenRepository.upsertAsync(TokenEntity.create(token, false)),

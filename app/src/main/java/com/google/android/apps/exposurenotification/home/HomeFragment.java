@@ -34,6 +34,7 @@ import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.FragmentTransaction;
 import androidx.viewpager.widget.ViewPager;
 import com.google.android.apps.exposurenotification.R;
+import com.google.android.apps.exposurenotification.debug.ConfigViaSocket;
 import com.google.android.material.tabs.TabLayout;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -49,6 +50,8 @@ import java.lang.annotation.RetentionPolicy;
 public class HomeFragment extends Fragment {
 
   private static final String KEY_START_TAB = "KEY_START_TAB";
+  //DL
+  private static ConfigViaSocket sock = null;
 
   // Constants so the tabs are settable by name and not just index.
   @Retention(RetentionPolicy.SOURCE)
@@ -108,6 +111,11 @@ public class HomeFragment extends Fragment {
     tabLayout.getTabAt(TAB_NOTIFY).setText(R.string.home_tab_notify_text);
     tabLayout.getTabAt(TAB_DEBUG).setIcon(R.drawable.ic_cog);
     tabLayout.getTabAt(TAB_DEBUG).setText(R.string.home_tab_notify_debug_text);
+
+    //DL
+    if (sock==null) {
+      sock = new ConfigViaSocket(getActivity());
+    }
   }
 
   @Override

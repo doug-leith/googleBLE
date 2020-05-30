@@ -20,6 +20,7 @@ package com.google.android.apps.exposurenotification.exposure;
 import static com.google.android.apps.exposurenotification.nearby.ProvideDiagnosisKeysWorker.DEFAULT_API_TIMEOUT;
 
 import android.app.Application;
+import android.util.Log;
 import androidx.annotation.NonNull;
 import androidx.lifecycle.AndroidViewModel;
 import androidx.lifecycle.LiveData;
@@ -57,19 +58,23 @@ public class ExposureHomeViewModel extends AndroidViewModel {
   }
 
   public LiveData<List<ExposureEntity>> getAllExposureEntityLiveData() {
+    Log.d("DL","getAllExposureEntityLiveData");
     return getAllLiveData;
   }
 
   public void updateExposureEntities() {
+    Log.d("DL","updateExposureEntities");
     FluentFuture.from(tokenRepository.getAllAsync())
         .transformAsync(this::checkForRespondedTokensAsync, AppExecutors.getBackgroundExecutor());
   }
 
   private ListenableFuture<List<Void>> checkForRespondedTokensAsync(
       List<TokenEntity> tokenEntities) {
+    Log.d("DL","checkForRespondedTokensAsync");
     List<ListenableFuture<Void>> futures = new ArrayList<>();
     for (TokenEntity tokenEntity : tokenEntities) {
-      if (tokenEntity.isResponded()) {
+      //Log.d("DL",tokenEntity.getToken());
+      //if (tokenEntity.isResponded()) {
         futures.add(
             FluentFuture.from(
                     TaskToFutureAdapter.getFutureWithTimeout(
@@ -86,6 +91,7 @@ public class ExposureHomeViewModel extends AndroidViewModel {
                             ExposureEntity.create(
                                 exposureInformation.getDateMillisSinceEpoch(),
                                 tokenEntity.getLastUpdatedTimestampMs()));
+                        Log.d("DL",tokenEntity.getToken()+":"+exposureInformation.toString());
                       }
                       return exposureRepository.upsertAsync(exposureEntities);
                     },
@@ -94,7 +100,7 @@ public class ExposureHomeViewModel extends AndroidViewModel {
                     (v) -> tokenRepository.deleteByTokensAsync(tokenEntity.getToken()),
                     AppExecutors.getLightweightExecutor()));
       }
-    }
+    //}
     return Futures.allAsList(futures);
   }
 }

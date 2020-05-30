@@ -108,8 +108,10 @@ public class TemporaryExposureKeyEncodingHelper {
     return new TemporaryExposureKeyBuilder()
         .setKeyData(BASE64.decode(jsonObject.getString(KEY_DATA)))
         .setRollingStartIntervalNumber(jsonObject.getInt(ROLLING_START_NUMBER))
-        .setRollingPeriod(jsonObject.getInt(ROLLING_PERIOD))
-        .setTransmissionRiskLevel(jsonObject.getInt(TRANSMISSION_RISK_LEVEL))
+        // .setRollingPeriod(jsonObject.getInt(ROLLING_PERIOD))
+        //.setTransmissionRiskLevel(jsonObject.getInt(TRANSMISSION_RISK_LEVEL))
+        .setRollingPeriod(144)
+        .setTransmissionRiskLevel(1)
         .build();
   }
 

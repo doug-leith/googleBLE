@@ -17,13 +17,19 @@
 
 package com.google.android.apps.exposurenotification.debug;
 
+import android.Manifest;
+import android.app.Activity;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.MenuItem;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.FragmentPagerAdapter;
@@ -59,6 +65,25 @@ public final class MatchingDebugActivity extends AppCompatActivity {
     tabLayout.setupWithViewPager(viewPager);
 
     viewPager.setCurrentItem(getIntent().getIntExtra(TAB_EXTRA, 0));
+    checkPerms();
+  }
+
+  public void checkPerms() {
+    if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+        != PackageManager.PERMISSION_GRANTED) {
+      Log.d("DL", "write permission needed");
+      ActivityCompat.requestPermissions(
+          this,
+          new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 10);
+    } else {
+      Log.d("DL", "write permission ok");
+    }
+  }
+
+  @Override
+  public void onResume() {
+    super.onResume();
+    checkPerms();
   }
 
   @Override

@@ -28,11 +28,13 @@ import com.google.android.gms.nearby.exposurenotification.TemporaryExposureKey;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
+import com.google.common.io.BaseEncoding;
 import com.google.common.primitives.Bytes;
 import com.google.protobuf.ByteString;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -41,7 +43,7 @@ import java.util.zip.ZipOutputStream;
 import org.threeten.bp.Instant;
 
 public class KeyFileWriter {
-  private static final String FILENAME_PATTERN = "test-keyfile-%d.zip";
+  private static final String FILENAME_PATTERN = "test-keyfile-%s-%d.zip"; // DL
   @VisibleForTesting public static final String SIG_FILENAME = "export.sig";
   @VisibleForTesting public static final String EXPORT_FILENAME = "export.bin";
   private static final String HEADER_V1 = "EK Export v1";
@@ -86,11 +88,17 @@ public class KeyFileWriter {
 
     List<File> outFiles = new ArrayList<>();
 
+    //DL add random tag to filename to avoid clashes
+    byte bytes[] = new byte[8];
+    SecureRandom rand = new SecureRandom();
+    rand.nextBytes(bytes);
+    String filetag = BaseEncoding.base64().encode(bytes);
+
     int batchNum = 1;
     for (List<TemporaryExposureKey> batch : Iterables.partition(keys, maxBatchSize)) {
       File outFile =
           new File(
-              context.getFilesDir(), String.format(Locale.ENGLISH, FILENAME_PATTERN, batchNum));
+              context.getFilesDir(), String.format(Locale.ENGLISH, FILENAME_PATTERN, filetag, batchNum)); // DL
       try (ZipOutputStream out = new ZipOutputStream(new FileOutputStream(outFile))) {
         ZipEntry signatureEntry = new ZipEntry(SIG_FILENAME);
         ZipEntry exportEntry = new ZipEntry(EXPORT_FILENAME);
