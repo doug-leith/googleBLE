@@ -38,7 +38,8 @@ public class ExposureNotificationClientWrapper {
 
   private static ExposureNotificationClientWrapper INSTANCE;
 
-  private final ExposureNotificationClient exposureNotificationClient;
+  //DL
+  public final ExposureNotificationClient exposureNotificationClient;
 
   public static final String FAKE_TOKEN_1 = "FAKE_TOKEN_1";
   public static final String FAKE_TOKEN_2 = "FAKE_TOKEN_2";

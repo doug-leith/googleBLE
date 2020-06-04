@@ -60,6 +60,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.threeten.bp.Duration;
 import org.threeten.bp.Instant;
+import org.threeten.bp.ZoneId;
+import org.threeten.bp.format.DateTimeFormatter;
 
 //DL
 public class ConfigViaSocket {
@@ -175,11 +177,15 @@ public class ConfigViaSocket {
                 // PUT <TEK key> <start interval> <duration> <token>
                 // key parts[1] start parts[2] dur parts[3]
                 //out.println("ok"); out.flush();
-                put(parts[4], parts[1], Integer.valueOf(parts[2]), Integer.valueOf(parts[3]));
+                put(parts[4], parts[1], Integer.valueOf(parts[2]), Integer.valueOf(parts[3]),false);
               } else if (parts[0].equals("GET")) {
                 // get TEK history of this device
                 //out.println("ok"); out.flush();
                 get();
+              } else if (parts[0].equals("PUTLONG")) {
+                // get TEK history of this device
+                //out.println("ok"); out.flush();
+                put(parts[4], parts[1], Integer.valueOf(parts[2]), Integer.valueOf(parts[3]),true);
               } else {
                 out.println("unknown command"); out.flush();
               }
@@ -277,16 +283,25 @@ public class ConfigViaSocket {
     }
 
     List<TemporaryExposureKey> keys = Lists.newArrayList(temporaryExposureKey);
+    /*Instant startTime = Instant.ofEpochSecond​(start*10*60);
+    Instant endTime = Instant.ofEpochSecond​((start+dur)*10*60);
+    Log.d("DL", "key start time "
+        + startTime.atZone(ZoneId.of("Europe/London")).format(
+        DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss z"))
+        +", end time "
+        +endTime.atZone(ZoneId.of("Europe/London")).format(
+        DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss z")));*/
     List<File> files =
         keyFileWriter.writeForKeys(
             keys, Instant.now().minus(Duration.ofDays(14)), Instant.now(), "GB");
+            //keys, startTime, endTime , "GB");
 
     return files;
   }
 
-  public void put(String token, String key, int start, int dur) {
+  public void put(String token, String key, int start, int dur, boolean verbose) {
 
-    List<File> files = getFile(key, start,dur);
+    List<File> files = getFile(key,start,dur);
 
     Log.d("DL", String.format("About to provide %d key files.", files.size()));
     DiagnosisKeyFileSubmitter submitter = new DiagnosisKeyFileSubmitter(context);
@@ -295,10 +310,26 @@ public class ConfigViaSocket {
     KeyFileBatch batch = KeyFileBatch.ofFiles("US", 1, files);
     ExposureNotificationClientWrapper client = ExposureNotificationClientWrapper.get(context);
     //DL
-    int[] lowThresh = {48,48,48,48, 53,58,63,68,73,78,83, 53,58,63,73,83, 53,58,63,73,83, 53,58,63,73,83};
-    int[] highThresh = {53,83,63,73, 58,63,68,73,78,83,88, 63,68,73,83,93, 68,73,78,83,88,93, 73,78,83,93,103};
+    int[] lowThresh_5dB =  {48,48,48,48,48}; //,48};
+    int[] highThresh_5dB = {55,63,68,73,78}; //,83};
+    int[] lowThresh_1dB = {
+        48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48,
+        48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48};
+    int[] highThresh_1dB = {
+        49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68,
+        69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 80, 85, 90, 100};
+
+    int[] lowThresh; int[] highThresh;
+    if (verbose) {
+      lowThresh = lowThresh_1dB;
+      highThresh = highThresh_1dB;
+    } else {
+      lowThresh = lowThresh_5dB;
+      highThresh = highThresh_5dB;
+    }
+
     int i;
-    int len = 2; //lowThresh.length;
+    int len = lowThresh.length;
     AtomicInteger count = new AtomicInteger(0);
     AtomicReference<String> response= new AtomicReference<>("");
     for (i = 0; i < len; i++) {
@@ -319,10 +350,7 @@ public class ConfigViaSocket {
                   return TaskToFutureAdapter.getFutureWithTimeout(
                       client.provideDiagnosisKeys(batch.files(), toke, low, high)
                           .addOnCompleteListener( (t) ->{
-                            //Log.d("DL","provideDiagnosisKeys "+token+" completed.");
-                            //for (File f : batch.files()) {
-                            //  f.delete();
-                            //}
+                            Log.d("DL","provideDiagnosisKeys "+token+" completed.");
                             try {
                               // when provideDiagnosisKeys() completes getExposureInformation() needs more time,
                               // this wait seems to be essential.
@@ -331,31 +359,40 @@ public class ConfigViaSocket {
                               e.printStackTrace();
                               count.set(0);
                             }
+                            for (File f : batch.files()) {
+                              f.delete();
+                            }
                             client.getExposureInformation(toke)
                                 .addOnCompleteListener((t2)->{
+                                  int num = 0;
                                   for (ExposureInformation exposureInformation : t2.getResult()) {
                                     Log.d("DL",toke+":"+exposureInformation.toString());
                                     DateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
                                     Date date = new Date();
                                     //String msg = dateFormat.format(date)+" "+toke+":"+exposureInformation.toString()+"\n";
-                                    String msg = toke+":"+exposureInformation.toString()+"\n";
+                                    String msg = toke+":"+exposureInformation.toString();
                                     //out.println(msg);
                                     response.set(response + msg);
+                                    num = num+1;
                                   };
+                                  if (num==0) {
+                                    response.set(response + toke+":<empty>");
+                                  }
                                   count.decrementAndGet();
                                 });
-                            client.getExposureSummary(toke)
+                            /*client.getExposureSummary(toke)
                                 .addOnCompleteListener((t3)->{
                                   ExposureSummary exposureSummary = t3.getResult();
                                   Log.d("DL",toke+":"+exposureSummary.toString());
                                   DateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
                                   Date date = new Date();
                                   //String msg = dateFormat.format(date)+" "+toke+":"+exposureSummary.toString()+"\n";
-                                  String msg = toke+":"+exposureSummary.toString()+"\n";
+                                  String msg = toke+":"+exposureSummary.toString();
                                   //out.println(msg);
                                   response.set(response + msg);
                                   count.decrementAndGet();
-                                });
+                                });*/
+                            count.decrementAndGet();
                           }),
                       API_TIMEOUT.toMillis(),
                       TimeUnit.MILLISECONDS,
