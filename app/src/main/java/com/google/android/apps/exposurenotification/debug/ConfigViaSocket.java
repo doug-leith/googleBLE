@@ -177,7 +177,7 @@ public class ConfigViaSocket {
                 // PUT <TEK key> <start interval> <duration> <token>
                 // key parts[1] start parts[2] dur parts[3]
                 //out.println("ok"); out.flush();
-                put(parts[4], parts[1], Integer.valueOf(parts[2]), Integer.valueOf(parts[3]),false);
+                put(parts[4], parts[1], Integer.valueOf(parts[2]), Integer.valueOf(parts[3]),1);
               } else if (parts[0].equals("GET")) {
                 // get TEK history of this device
                 //out.println("ok"); out.flush();
@@ -185,7 +185,11 @@ public class ConfigViaSocket {
               } else if (parts[0].equals("PUTLONG")) {
                 // get TEK history of this device
                 //out.println("ok"); out.flush();
-                put(parts[4], parts[1], Integer.valueOf(parts[2]), Integer.valueOf(parts[3]),true);
+                put(parts[4], parts[1], Integer.valueOf(parts[2]), Integer.valueOf(parts[3]),2);
+              } else if (parts[0].equals("PUTSHORT")) {
+                // get TEK history of this device
+                //out.println("ok"); out.flush();
+                put(parts[4], parts[1], Integer.valueOf(parts[2]), Integer.valueOf(parts[3]),0);
               } else {
                 out.println("unknown command"); out.flush();
               }
@@ -299,7 +303,7 @@ public class ConfigViaSocket {
     return files;
   }
 
-  public void put(String token, String key, int start, int dur, boolean verbose) {
+  public void put(String token, String key, int start, int dur, int verbose) {
 
     List<File> files = getFile(key,start,dur);
 
@@ -310,6 +314,8 @@ public class ConfigViaSocket {
     KeyFileBatch batch = KeyFileBatch.ofFiles("US", 1, files);
     ExposureNotificationClientWrapper client = ExposureNotificationClientWrapper.get(context);
     //DL
+    int[] lowThresh_short =  {48};
+    int[] highThresh_short= {53};
     int[] lowThresh_5dB =  {48,48,48,48,48}; //,48};
     int[] highThresh_5dB = {55,63,68,73,78}; //,83};
     int[] lowThresh_1dB = {
@@ -320,15 +326,17 @@ public class ConfigViaSocket {
         69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 80, 85, 90, 100};
 
     int[] lowThresh; int[] highThresh;
-    if (verbose) {
+    if (verbose == 1) {
+      lowThresh = lowThresh_5dB;
+      highThresh = highThresh_5dB;
+    } else if (verbose == 2) {
       lowThresh = lowThresh_1dB;
       highThresh = highThresh_1dB;
     } else {
-      lowThresh = lowThresh_5dB;
-      highThresh = highThresh_5dB;
+      lowThresh = lowThresh_short;
+      highThresh = highThresh_short;
     }
-
-    int i;
+      int i;
     int len = lowThresh.length;
     AtomicInteger count = new AtomicInteger(0);
     AtomicReference<String> response= new AtomicReference<>("");
