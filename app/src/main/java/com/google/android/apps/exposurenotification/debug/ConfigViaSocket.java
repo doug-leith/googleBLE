@@ -315,7 +315,9 @@ public class ConfigViaSocket {
     ExposureNotificationClientWrapper client = ExposureNotificationClientWrapper.get(context);
     //DL
     int[] lowThresh_short =  {48};
-    int[] highThresh_short= {53};
+    int[] highThresh_short= {63};
+    //int[] lowThresh_short =  {48,48,48};
+    //int[] highThresh_short= {68,70,72};
     int[] lowThresh_5dB =  {48,48,48,48,48}; //,48};
     int[] highThresh_5dB = {55,63,68,73,78}; //,83};
     int[] lowThresh_1dB = {
