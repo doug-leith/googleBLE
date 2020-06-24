@@ -114,6 +114,9 @@ public class KeyFileWriter {
         out.putNextEntry(exportEntry);
         out.write(exportBytes);
 
+        // DL flush output to file
+        out.close();
+
         outFiles.add(outFile);
         batchNum++;
       } catch (IOException e) {

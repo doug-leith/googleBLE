@@ -320,12 +320,21 @@ public class ConfigViaSocket {
     //int[] highThresh_short= {68,70,72};
     int[] lowThresh_5dB =  {48,48,48,48,48}; //,48};
     int[] highThresh_5dB = {55,63,68,73,78}; //,83};
-    int[] lowThresh_1dB = {
+    /*int[] lowThresh_1dB = {
         48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48,
         48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48};
     int[] highThresh_1dB = {
         49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68,
-        69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 80, 85, 90, 100};
+        69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 80, 85, 90, 100};*/
+
+    int[] lowThresh_1dB = {
+        30, 30, 30, 30, 30,
+        30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30
+       };
+    int[] highThresh_1dB = {
+        32, 34, 36, 38, 40,
+        42, 44, 46, 48, 50, 52, 54, 56, 58, 60, 62, 64, 66, 68, 70, 72, 74, 76, 78, 80
+        };
 
     int[] lowThresh; int[] highThresh;
     if (verbose == 1) {
@@ -350,7 +359,8 @@ public class ConfigViaSocket {
       FluentFuture.from(
           TaskToFutureAdapter.getFutureWithTimeout(
               client.isEnabled(),
-              DEFAULT_API_TIMEOUT.toMillis(),
+              //DEFAULT_API_TIMEOUT.toMillis(),
+              120000, // 120s
               TimeUnit.MILLISECONDS,
               AppExecutors.getScheduledExecutor()))
           .transform(
